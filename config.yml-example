@@ -1,0 +1,5 @@
+incomingEmailAddress: something@example.com
+company: MyTelco
+defaultStage: dev
+sourceBucket: my-incoming-bucket
+targetBucket: my-target-bucket

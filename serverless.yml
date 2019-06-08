@@ -1,0 +1,92 @@
+service: invoice-extractor
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  stage: ${opt:stage, self:custom.defaultStage}
+  region: eu-west-1
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:GetObject"
+      Resource: "arn:aws:s3:::${self:custom.sourceBucket}/*"
+    - Effect: "Allow"
+      Action:
+        - "s3:PutObject"
+      Resource: "arn:aws:s3:::${self:custom.targetBucket}/*"
+  environment:
+    COMPANY: ${self:custom.company}
+    S3_OUTPUT_BUCKET: ${self:custom.targetBucket}
+
+custom: ${file(${opt:config, './config.yml'})}
+
+package:
+  exclude:
+    - ./**
+  include:
+    - handler.js
+    - node_modules/**
+
+functions:
+  extractFirstPage:
+    handler: handler.extractFirstPage
+    events:
+      - s3:
+          bucket: incoming
+          event: s3:ObjectCreated:*
+
+resources:
+  Resources:
+    S3BucketIncoming:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.sourceBucket}-${self:provider.stage}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+    ExtractFirstPageLambdaPermissionIncomingS3:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        FunctionName:
+          "Fn::GetAtt":
+            - ExtractFirstPageLambdaFunction
+            - Arn
+        Principal: "s3.amazonaws.com"
+        Action: "lambda:InvokeFunction"
+        SourceAccount:
+          Ref: AWS::AccountId
+        SourceArn: "arn:aws:s3:::${self:custom.sourceBucket}-${self:provider.stage}"
+    S3EMailBucketPermissions:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: S3BucketIncoming
+        PolicyDocument:
+          Statement:
+            - Principal:
+                Service: "ses.amazonaws.com"
+              Action:
+                - s3:PutObject
+              Effect: Allow
+              Sid: "AllowSESPuts"
+              Resource:
+                Fn::Join: ['', ['arn:aws:s3:::', Ref: "S3BucketIncoming", '/*'] ]
+              Condition:
+                StringEquals:
+                  "aws:Referer": { Ref: AWS::AccountId }
+    IncomingReceiptRule:
+      Type: AWS::SES::ReceiptRule
+      Properties:
+        RuleSetName: default-rule-set
+        Rule:
+          Name: mail-to-${self:custom.sourceBucket}-${self:provider.stage}
+          Recipients:
+            - ${self:custom.incomingEmailAddress}
+          Actions:
+            - S3Action:
+                BucketName: ${self:custom.sourceBucket}-${self:provider.stage}
+          Enabled: true
+      DependsOn:
+        - S3EMailBucketPermissions

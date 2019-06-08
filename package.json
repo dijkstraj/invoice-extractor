@@ -1,0 +1,16 @@
+{
+  "name": "nl.ontbyte.invoice-extractor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jogchem Dijkstra <jogchem@gmail.com>",
+  "repository": "https://github.com/dijkstraj/invoice-extractor.git",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "hummus": "^1.0.104",
+    "mailparser": "^2.7.1"
+  }
+}
