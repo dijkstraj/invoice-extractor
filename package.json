@@ -10,7 +10,7 @@
   "repository": "https://github.com/dijkstraj/invoice-extractor.git",
   "license": "Apache-2.0",
   "dependencies": {
-    "hummus": "^1.0.104",
+    "hummus": "^1.0.111",
     "mailparser": "^2.7.1"
   }
 }
